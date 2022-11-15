@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+    <head>
+        <title>Cadê o Ônibus?</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.2/dist/leaflet.css"
+     integrity="sha256-sA+zWATbFveLLNqWO2gtiw3HL/lh1giY/Inf1BJ0z14="
+     crossorigin=""/>
+     <script src="https://unpkg.com/leaflet@1.9.2/dist/leaflet.js"
+     integrity="sha256-o9N1jGDZrf5tS+Ft4gbIK7mYMipq9lqpVJ91xHSyKhg="
+     crossorigin=""></script>
+     <style>
+        #map {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          top: 0px;
+          left: 0px;
+        }
+        .linha {font-size: large;}
+     </style>
+    </head>
+    <body>
+        <div id="map"></div>
+        <script>
+            // Coordenadas da Praça da Sé
+            var coord = [-23.550394, -46.633947];
+
+            var map = L.map('map').setView(coord, 15);
+
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            }).addTo(map);
+
+            var OLHOVIVO_API = '7d8e0c931a73bccd4fd5bbedc94b2e7c7753ec13fc9785f9371ca8d243566429';
+            var listaOnibus = [];
+            var ultimaAtualizacao;
+            var marcadores = []
+
+            // Fazer login no Olho Vivo
+            fetch(`/olhovivo/auth?token=${OLHOVIVO_API}`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+
+            function desenharMarcadores() {
+                while (marcadores.length > 0)
+                  marcadores.pop().remove();
+
+                // Para melhorar o desempenho, apenas adicionar os pontos visíveis no mapa
+                listaOnibus.forEach(onibus => {
+                  if (map.getBounds().contains(onibus.localizacao)) {
+                    var marcador = L.marker(onibus.localizacao).addTo(map);
+                    marcador.bindPopup(
+                      `<span class="linha">${onibus.linha}</span><br><br>` +
+                      `<b>Sentido:</b> ${onibus.sentido == 1 ? 'Ida' : 'Volta'}<br>` +
+                      `<b>Origem:</b> ${onibus.origem}<br>` +
+                      `<b>Destino:</b> ${onibus.destino}<br>` +
+                      `<b>Acessível:</b> ${onibus.acessivel ? 'Sim' : 'Não'}<br><br>` +
+                      `<b>Última atualização:</b> ${onibus.ultimaAtualizacao}`
+                    );
+                    marcadores.push(marcador);
+                  }
+                });
+              }
+
+            function obterOnibus() {
+                fetch('/olhovivo/Posicao', {
+                  credentials: 'include'
+                })
+                  .then((response) => response.json())
+                  .then((data) => {
+                    ultimaAtualizacao = data.hr;
+
+                    while (listaOnibus.length > 0)
+                      listaOnibus.pop();
+
+                    data.l.forEach(linha => {
+                      linha.vs.forEach(onibus => {
+                        var onibus_elemento = {
+                          linha: linha.c,
+                          sentido: linha.sl,
+                          origem: linha.lt0,
+                          destino: linha.lt1,
+                          prefixo: onibus.p,
+                          acessivel: onibus.a,
+                          ultimaAtualizacao: onibus.ta,
+                          localizacao: [onibus.py, onibus.px]
+                        }
+                        listaOnibus.push(onibus_elemento);
+                      });
+                    });
+
+                    desenharMarcadores();
+                  });
+              }
+
+            map.on('zoom', desenharMarcadores);
+            map.on('move', desenharMarcadores);
+
+            obterOnibus();
+            window.setInterval(obterOnibus, 10000);
+        </script>
+    </body>
+</html>

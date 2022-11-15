@@ -7,8 +7,8 @@ A diferença para esta versão da [primeira versão](https://github.com/edluz/Ca
 ## Como instalar
 
 `
-git clone https://github.com/edluz/CadeOOnibus2
-cd CadeOOnibus2
-npm install
-npm start
+  git clone https://github.com/edluz/CadeOOnibus2
+  cd CadeOOnibus2
+  npm install
+  npm start
 `
